@@ -57,12 +57,10 @@ void SHA256::update(const std::string& data) {
 }
 
 uint8_t* SHA256::digest() {
-    uint8_t* hash = new uint8_t[32];
-
     pad();
-    revert(hash);
+    revert();
 
-    return hash;
+    return m_hash.data();
 }
 
 uint32_t rotr(uint32_t x, uint32_t n) {
@@ -90,7 +88,7 @@ void SHA256::transform() {
     uint32_t state[8];
 
     for (uint8_t i = 0, j = 0; i < 16; i++, j += 4) { // Split data in 32 bit blocks for the 16 first words
-        m[i] =    (m_data[j]     << 24)
+        m[i] =    (m_data[j    ] << 24)
                 | (m_data[j + 1] << 16)
                 | (m_data[j + 2] << 8 )
                 | (m_data[j + 3]      );
@@ -107,7 +105,7 @@ void SHA256::transform() {
     for (uint8_t i = 0; i < 64; i++) {
         maj  = majority(state[0], state[1], state[2]);
         xorA = rotr(state[0], 2) ^ rotr(state[0], 13) ^ rotr(state[0], 22);
-        ch = choose(state[4], state[5], state[6]);
+        ch   = choose(state[4], state[5], state[6]);
         xorE = rotr(state[4], 6) ^ rotr(state[4], 11) ^ rotr(state[4], 25);
 
         sum  = m[i] + SHA256_KEYS[i] + state[7] + ch + xorE;
@@ -158,12 +156,12 @@ void SHA256::pad() {
     transform();
 }
 
-void SHA256::revert(uint8_t* hash) {
+void SHA256::revert() {
     // SHA uses big endian byte ordering
     // Revert all bytes
     for (uint8_t i = 0 ; i < 4 ; i++) {
         for(uint8_t j = 0 ; j < 8 ; j++) {
-            hash[i + (j * 4)] = (m_state[j] >> (24 - i * 8)) & 0x000000ff;
+            m_hash[i + (j * 4)] = (m_state[j] >> (24 - i * 8)) & 0x000000ff;
         }
     }
 }
@@ -177,4 +175,35 @@ std::string SHA256::to_string(const uint8_t* digest) {
     }
 
     return s.str();
+}
+
+int char_to_integer(char input) {
+    if(input >= '0' && input <= '9') {
+        return input - '0';
+    }
+
+    if(input >= 'A' && input <= 'F') {
+        return input - 'A' + 10;
+    }
+
+    if(input >= 'a' && input <= 'f') {
+        return input - 'a' + 10;
+    }
+
+    throw std::invalid_argument("Invalid input string");
+}
+
+void hex_to_binary(const char* hash, uint8_t* target) {
+    while(*hash && hash[1]) {
+        *(target++) = char_to_integer(*hash) * 16 + char_to_integer(hash[1]);
+        hash += 2;
+    }
+}
+
+SHA256::SHA256(const char* hash) {
+    hex_to_binary(hash, m_hash.data());
+}
+
+bool SHA256::operator==(const SHA256& rhs) {
+    return m_hash == rhs.m_hash;
 }
