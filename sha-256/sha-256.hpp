@@ -13,8 +13,8 @@ public:
     SHA256();
     SHA256(const char* hash);
 
+    void update(const char* data, size_t length);
     void update(const uint8_t* data, size_t length);
-    void update(const std::string& data);
     uint8_t* digest();
 
     static std::string to_string(const uint8_t* digest);
